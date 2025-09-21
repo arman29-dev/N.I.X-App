@@ -1,0 +1,47 @@
+name: nix
+description: "Your private AI agent to help you with all your work"
+publish_to: 'none'
+
+
+version: 1.0.0+1
+
+
+environment:
+  sdk: ^3.9.2
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  http: ^1.1.0
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.4
+  mobile_scanner: ^3.5.7
+  dart_jsonwebtoken: ^2.12.2
+  device_info_plus: ^12.1.0
+  dart_ipify: ^1.1.1
+  path_provider: ^2.1.5
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+
+flutter:
+
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
