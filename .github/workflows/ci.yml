@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -25,8 +27,19 @@ jobs:
       - name: Build Android APK
         run: flutter build apk --release
 
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
+      - name: Generate Tag
+        id: tag
+        run: |
+          TAG="v1.0.${{ github.run_number }}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git tag $TAG
+          git push origin $TAG
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: android-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
