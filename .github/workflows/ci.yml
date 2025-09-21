@@ -4,17 +4,23 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.github/workflows/**'
+      - '.gitignore'
 
 jobs:
   build:
     name: Build Flutter App
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -32,10 +38,6 @@ jobs:
         run: |
           TAG="v1.0.${{ github.run_number }}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag $TAG
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $TAG
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
