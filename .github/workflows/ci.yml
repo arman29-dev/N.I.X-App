@@ -32,8 +32,10 @@ jobs:
         run: |
           TAG="v1.0.${{ github.run_number }}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag $TAG
-          git push origin $TAG
+          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git $TAG
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
