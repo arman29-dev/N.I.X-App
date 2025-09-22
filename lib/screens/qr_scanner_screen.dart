@@ -80,6 +80,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           ).showSnackBar(SnackBar(content: Text(msg)));
         } else {
           AppDataStorage.setDeviceStatus(deviceStatus);
+          AppDataStorage.setDeviceUID(deviceUid);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(msg)));

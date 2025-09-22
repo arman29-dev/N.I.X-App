@@ -6,6 +6,9 @@ class AppDataStorage {
   static String? _email;
   static bool? _status;
 
+  static String? _accessTokenUID;
+  static String? _deviceUID;
+
   static Future<String> get _filePath async {
     final directory = await getApplicationDocumentsDirectory();
     return '${directory.path}/login_data.json';
@@ -21,10 +24,20 @@ class AppDataStorage {
     await _updateFile({'status': status});
   }
 
+  static Future<void> setAccessTokenUID(String accessTokenUID) async {
+    _accessTokenUID = accessTokenUID;
+    await _updateFile({'accessTokenUID': accessTokenUID,});
+  }
+
+  static Future<void> setDeviceUID(String deviceUID) async {
+    _deviceUID = deviceUID;
+    await _updateFile({'deviceUID': deviceUID,});
+  }
+
   static Future<void> _updateFile(Map<String, dynamic> newData) async {
     final file = File(await _filePath);
     Map<String, dynamic> existingData = {};
-    
+
     if (await file.exists()) {
       try {
         final content = await file.readAsString();
@@ -33,7 +46,7 @@ class AppDataStorage {
         // File corrupted or empty, start fresh
       }
     }
-    
+
     existingData.addAll(newData);
     await file.writeAsString(jsonEncode(existingData));
   }
@@ -48,6 +61,40 @@ class AppDataStorage {
         final data = jsonDecode(content);
         _email = data['email'];
         return _email;
+      }
+    } catch (e) {
+      // File doesn't exist or error reading
+    }
+    return null;
+  }
+
+  static Future<String?> getDeviceUID() async {
+    if (_deviceUID != null) return _deviceUID;
+
+    try {
+      final file = File(await _filePath);
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final data = jsonDecode(content);
+        _deviceUID = data['deviceUID'];
+        return _deviceUID;
+      }
+    } catch (e) {
+      // File doesn't exist or error reading
+    }
+    return null;
+  }
+
+  static Future<String?> getAccesTokenUID() async {
+    if (_accessTokenUID != null) return _accessTokenUID;
+
+    try {
+      final file = File(await _filePath);
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final data = jsonDecode(content);
+        _accessTokenUID = data['accessTokenUID'];
+        return _accessTokenUID;
       }
     } catch (e) {
       // File doesn't exist or error reading

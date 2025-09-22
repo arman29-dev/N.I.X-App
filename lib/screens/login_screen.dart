@@ -5,6 +5,7 @@ import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
 import '../utils/app_colors.dart';
 import '../utils/token_storage.dart';
+import '../utils/appdata_storage.dart';
 import '../api/login.dart';
 import 'registration_screen.dart';
 import 'qr_scanner_screen.dart';
@@ -45,11 +46,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final responseData = jsonDecode(response.body);
 
-      if (responseData.containsKey('access_token') && responseData.containsKey('success')) {
+      if (responseData.containsKey('access_token') &&
+          responseData.containsKey('success')) {
         TokenStorage.setToken(
           responseData['access_token'],
           responseData['token_type'] ?? 'Bearer',
         );
+
+        AppDataStorage.setAccessTokenUID(responseData['access_token_uid']);
 
         ScaffoldMessenger.of(
           context,
