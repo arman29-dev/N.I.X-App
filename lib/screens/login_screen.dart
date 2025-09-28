@@ -51,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         TokenStorage.setToken(
           responseData['access_token'],
           responseData['token_type'] ?? 'Bearer',
+          responseData['access_token_uid']
         );
 
         AppDataStorage.setAccessTokenUID(responseData['access_token_uid']);

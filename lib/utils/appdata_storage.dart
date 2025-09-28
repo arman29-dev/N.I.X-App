@@ -4,9 +4,9 @@ import 'package:path_provider/path_provider.dart';
 
 class AppDataStorage {
   static String? _email;
-  static bool? _status;
-
   static String? _accessTokenUID;
+
+  static bool? _status;
   static String? _deviceUID;
 
   static Future<String> get _filePath async {
@@ -26,12 +26,12 @@ class AppDataStorage {
 
   static Future<void> setAccessTokenUID(String accessTokenUID) async {
     _accessTokenUID = accessTokenUID;
-    await _updateFile({'accessTokenUID': accessTokenUID,});
+    await _updateFile({'accessTokenUID': accessTokenUID});
   }
 
   static Future<void> setDeviceUID(String deviceUID) async {
     _deviceUID = deviceUID;
-    await _updateFile({'deviceUID': deviceUID,});
+    await _updateFile({'deviceUID': deviceUID});
   }
 
   static Future<void> _updateFile(Map<String, dynamic> newData) async {
@@ -110,7 +110,11 @@ class AppDataStorage {
       if (await file.exists()) {
         final content = await file.readAsString();
         final data = jsonDecode(content);
-        _status = data['status'];
+        // Ensure proper boolean conversion
+        final statusValue = data['status'];
+        _status = statusValue is bool
+            ? statusValue
+            : (statusValue == true || statusValue == 'true');
         return _status;
       }
     } catch (e) {
@@ -124,9 +128,13 @@ class AppDataStorage {
     return email != null;
   }
 
-  static Future<void> clearLoginData() async {
+  static Future<void> clearAppData() async {
     _email = null;
     _status = null;
+
+    _accessTokenUID = null;
+    _deviceUID = null;
+
     try {
       final file = File(await _filePath);
       if (await file.exists()) {

@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter/material.dart';
 
 import '../widgets/custom_button.dart';
+
 import '../utils/token_storage.dart';
 import '../utils/appdata_storage.dart';
 import '../utils/app_colors.dart';
+
 import '../api/check_server_status.dart';
+import '../api/logout_device.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -24,7 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _updateStatuses();
     _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _updateServerStatus();
+      _updateStatuses();
     });
   }
 
@@ -42,7 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     } catch (_) {
       setState(() {
-        serverStatus = 'Error Getting Server Status';
+        serverStatus = 'Error';
       });
     }
   }
@@ -115,8 +118,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: CustomButton(
-                      onPressed: () => _takeOffline(),
-                      text: deviceStatus == 'Online'? 'Take Offline' : 'Take Online',
+                      onPressed: () => _changeStatus(deviceStatus),
+                      text: deviceStatus == 'Online'? 'Go Offline' : 'Go Online',
                       backgroundColor: deviceStatus == 'Online'? Colors.red : Colors.lightGreen,
                       icon: deviceStatus == 'Online'? Icons.offline_bolt : Icons.online_prediction,
                     ),
@@ -125,7 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 20),
               CustomOutlinedButton(
-                onPressed: () => _showRevokeConfirmation(context),
+                onPressed: () => _showLogoutConfirmation(context),
                 text: 'Logout',
                 borderColor: Colors.redAccent,
                 icon: Icons.logout,
@@ -138,44 +141,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _refreshConnection() {
-    // API call for refresh connection
-    print('Refresh connection API call');
     _updateStatuses();
   }
 
-  void _takeOffline() {
-    // API call for take offline
-    print('Take offline API call');
+  void _changeStatus(String currentState) {
+    _updateStatuses();
   }
 
-  void _showRevokeConfirmation(BuildContext context) {
+  void _showLogoutConfirmation(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: false,
+      barrierColor: AppColors.cardBackground,
       builder: (context) => AlertDialog(
         title: const Text('Confirm'),
         content: const Text('Are you sure you want to logout this device?'),
         actions: [
-          TextButton(
+          CustomOutlinedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            text: 'Cancel',
+            borderColor: Colors.cyan,
           ),
-          TextButton(
+          SizedBox(height: 5),
+          CustomButton(
             onPressed: () {
               Navigator.pop(context);
-              _logout(context);
+              _logout();
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            backgroundColor: Colors.redAccent,
+            text: 'Logout',
           ),
         ],
       ),
     );
   }
 
-  void _logout(BuildContext context) async {
-    // API call for logout
-    print('Logout API call');
-    await AppDataStorage.clearLoginData();
-    TokenStorage.clearToken();
-    Navigator.pushReplacementNamed(context, '/home');
+  void _logout() async {
+    bool stats = await logout();
+    if (!mounted) return;
+
+    if (stats) {
+      await AppDataStorage.clearAppData();
+      TokenStorage.clearToken();
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: AppColors.cardBackground,
+        builder: (context) => AlertDialog(
+          title: const Text('Logout Error'),
+          content: const Text('You were unable to logout. Most probably a server issue.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Stay Logged-In', style: TextStyle(color: Colors.green)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }
