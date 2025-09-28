@@ -33,12 +33,14 @@ class CustomButton extends StatelessWidget {
                 children: [
                   Icon(icon, color: Colors.white, size: 18),
                   const SizedBox(width: 8),
-                  Text(
-                    text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -93,12 +95,14 @@ class CustomOutlinedButton extends StatelessWidget {
                 children: [
                   Icon(icon, color: Colors.white, size: 18),
                   const SizedBox(width: 8),
-                  Text(
-                    text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
