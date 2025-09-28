@@ -37,9 +37,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
     try {
       final qrJson = jsonDecode(qrData);
-      final deviceUid = qrJson['device_uid'];
-      final secret = qrJson['secret'];
-      final userAccessToken = qrJson['user_access_token'];
+      final deviceUid = qrJson['device_uid'] as String?;
+      final secret = qrJson['secret'] as String?;
+      final userAccessToken = qrJson['user_access_token'] as String?;
+      if (deviceUid == null || secret == null || userAccessToken == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid QR Code: Missing required data')),
+        );
+        return;
+      }
 
       final storedToken = TokenStorage.getAccessToken();
 
@@ -60,18 +66,20 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         );
         return;
       }
-
-      // Debug logging
-      print('Stored token data: $storedTokenData');
-      print('QR token data: $qrTokenData');
-
       // Compare decoded token data
       if (_compareTokenData(storedTokenData, qrTokenData)) {
         final response = await registerDevice(deviceUid, qrTokenData['uid']);
-        final responseData = jsonDecode(response.body);
 
+        if (response.statusCode != 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Server error: ${response.statusCode}')),
+          );
+          return;
+        }
+
+        final responseData = jsonDecode(response.body);
         final stats = responseData['stats'];
-        final msg = responseData['message'];
+        final msg = responseData['message'] ?? responseData['msg'];
         final deviceStatus = responseData['device_status'];
 
         if (stats != 200) {
