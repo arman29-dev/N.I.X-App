@@ -27,6 +27,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+android/build/reports
 
 # Symbolication related
 app.*.symbols
