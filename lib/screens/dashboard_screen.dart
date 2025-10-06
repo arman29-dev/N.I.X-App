@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../widgets/custom_button.dart';
@@ -8,7 +9,7 @@ import '../utils/appdata_storage.dart';
 import '../utils/app_colors.dart';
 import '../utils/responsive.dart';
 
-import '../api/check_server_status.dart';
+import '../api/status_sync.dart';
 import '../api/logout_device.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -26,9 +27,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _updateStatuses();
+    _updateDeviceStatus();
+    _updateServerStatus();
     _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _updateStatuses();
+      _updateDeviceStatus();
+      _updateServerStatus();
     });
   }
 
@@ -51,7 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _updateStatuses() async {
+  Future<void> _updateDeviceStatus() async {
     final status = await AppDataStorage.getDeviceStatus();
     setState(() {
       deviceStatus = (status ?? true) ? 'Online' : 'Offline';
@@ -61,8 +64,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (status == null) {
       await AppDataStorage.setDeviceStatus(true);
     }
-
-    await _updateServerStatus();
   }
 
   @override
@@ -97,7 +98,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           text: serverStatus,
                           style: TextStyle(
                             fontSize: Responsive.sp(context, 24),
-                            color: serverStatus == 'Online'? Colors.green : Colors.redAccent,
+                            color: serverStatus == 'Online'
+                                ? Colors.green
+                                : Colors.redAccent,
                           ),
                         ),
                       ],
@@ -114,7 +117,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           text: deviceStatus,
                           style: TextStyle(
                             fontSize: Responsive.sp(context, 24),
-                            color: deviceStatus == 'Online'? Colors.green : Colors.redAccent,
+                            color: deviceStatus == 'Online'
+                                ? Colors.green
+                                : Colors.redAccent,
                           ),
                         ),
                       ],
@@ -134,10 +139,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       SizedBox(width: Responsive.width(context) * 0.04),
                       Expanded(
                         child: CustomButton(
-                          onPressed: () => _changeStatus(deviceStatus),
-                          text: deviceStatus == 'Online'? 'Go Offline' : 'Go Online',
-                          backgroundColor: deviceStatus == 'Online'? Colors.red : Colors.lightGreen,
-                          icon: deviceStatus == 'Online'? Icons.offline_bolt : Icons.online_prediction,
+                          onPressed: () => _changeDeviceStatus(),
+                          text: deviceStatus == 'Online'
+                              ? 'Go Offline'
+                              : 'Go Online',
+                          backgroundColor: deviceStatus == 'Online'
+                              ? Colors.red
+                              : Colors.lightGreen,
+                          icon: deviceStatus == 'Online'
+                              ? Icons.offline_bolt
+                              : Icons.online_prediction,
                         ),
                       ),
                     ],
@@ -158,12 +169,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _refreshConnection() {
-    _updateStatuses();
+  void _refreshConnection() async {
+    await _updateServerStatus();
+    _updateServerStatus();
   }
 
-  void _changeStatus(String currentState) {
-    _updateStatuses();
+  void _changeDeviceStatus() async {
+    final res = await toggleDeviceStatus();
+    final resData = jsonDecode(res.body);
+
+    if (res.statusCode == 200) {
+      AppDataStorage.setDeviceStatus(resData['device_status']);
+    }
+    _updateDeviceStatus();
   }
 
   void _showLogoutConfirmation(BuildContext context) {
@@ -209,13 +227,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         barrierColor: AppColors.cardBackground,
         builder: (context) => AlertDialog(
           title: const Text('Logout Error'),
-          content: const Text('You were unable to logout. Most probably a server issue.'),
+          content: const Text(
+            'You were unable to logout. Most probably a server issue.',
+          ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text('Stay Logged-In', style: TextStyle(color: Colors.green)),
+              child: const Text(
+                'Stay Logged-In',
+                style: TextStyle(color: Colors.green),
+              ),
             ),
           ],
         ),
