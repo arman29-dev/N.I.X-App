@@ -8,6 +8,7 @@ import 'package:nix/utils/appdata_storage.dart';
 
 import '../utils/app_colors.dart';
 import '../utils/token_storage.dart';
+import '../utils/responsive.dart';
 
 class QRScannerScreen extends StatefulWidget {
   const QRScannerScreen({super.key});
@@ -126,41 +127,139 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final scanAreaSize = Responsive.isMobile(context) 
+        ? screenSize.width * 0.7 
+        : screenSize.width * 0.4;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Device Registration'),
+        title: Text(
+          'Device Registration',
+          style: TextStyle(fontSize: Responsive.sp(context, 18)),
+        ),
         backgroundColor: AppColors.cardBackground,
         foregroundColor: Colors.white,
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            flex: 4,
-            child: MobileScanner(
-              controller: cameraController,
-              onDetect: (capture) {
-                final List<Barcode> barcodes = capture.barcodes;
-                for (final barcode in barcodes) {
-                  if (barcode.rawValue != null) {
-                    _processQRData(barcode.rawValue!);
-                    break;
-                  }
+          MobileScanner(
+            controller: cameraController,
+            onDetect: (capture) {
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                if (barcode.rawValue != null) {
+                  _processQRData(barcode.rawValue!);
+                  break;
                 }
-              },
+              }
+            },
+          ),
+          CustomPaint(
+            painter: ScannerOverlayPainter(scanAreaSize),
+            child: Container(),
+          ),
+          Center(
+            child: Container(
+              width: scanAreaSize,
+              height: scanAreaSize,
+              child: Stack(
+                children: [
+                  // Top-left corner
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      width: Responsive.width(context) * 0.1,
+                      height: Responsive.width(context) * 0.1,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.white, width: 4),
+                          left: BorderSide(color: Colors.white, width: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Top-right corner
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: Responsive.width(context) * 0.1,
+                      height: Responsive.width(context) * 0.1,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.white, width: 4),
+                          right: BorderSide(color: Colors.white, width: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Bottom-left corner
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    child: Container(
+                      width: Responsive.width(context) * 0.1,
+                      height: Responsive.width(context) * 0.1,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white, width: 4),
+                          left: BorderSide(color: Colors.white, width: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Bottom-right corner
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: Responsive.width(context) * 0.1,
+                      height: Responsive.width(context) * 0.1,
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.white, width: 4),
+                          right: BorderSide(color: Colors.white, width: 4),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          Expanded(
-            flex: 1,
+          Positioned(
+            bottom: Responsive.height(context) * 0.12,
+            left: 0,
+            right: 0,
             child: Container(
-              color: AppColors.cardBackground,
-              child: Center(
-                child: isProcessing
-                    ? const CircularProgressIndicator(color: AppColors.accent)
-                    : const Text(
-                        'Point camera at QR code',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
+              padding: Responsive.padding(context, horizontal: 20, vertical: 0),
+              child: Column(
+                children: [
+                  if (isProcessing)
+                    const CircularProgressIndicator(color: AppColors.accent)
+                  else
+                    Text(
+                      'Scan QR code',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: Responsive.sp(context, 18),
+                        fontWeight: FontWeight.w500,
                       ),
+                      textAlign: TextAlign.center,
+                    ),
+                  SizedBox(height: Responsive.height(context) * 0.015),
+                  Text(
+                    'Position the QR code within the frame to scan',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: Responsive.sp(context, 14),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           ),
@@ -174,4 +273,35 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     cameraController.dispose();
     super.dispose();
   }
+}
+
+class ScannerOverlayPainter extends CustomPainter {
+  final double scanAreaSize;
+
+  ScannerOverlayPainter(this.scanAreaSize);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black.withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    final scanRect = Rect.fromCenter(
+      center: Offset(centerX, centerY),
+      width: scanAreaSize,
+      height: scanAreaSize,
+    );
+
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addRect(scanRect)
+      ..fillType = PathFillType.evenOdd;
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
