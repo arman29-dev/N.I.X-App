@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppDataStorage {
   static String? _email;
   static String? _accessTokenUID;
-
-  static bool? _status;
   static String? _deviceUID;
+
+  static const String _deviceStatusKey = 'device_status';
 
   static Future<String> get _filePath async {
     final directory = await getApplicationDocumentsDirectory();
@@ -20,8 +21,8 @@ class AppDataStorage {
   }
 
   static Future<void> setDeviceStatus(bool status) async {
-    _status = status;
-    await _updateFile({'status': status});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_deviceStatusKey, status);
   }
 
   static Future<void> setAccessTokenUID(String accessTokenUID) async {
@@ -103,37 +104,23 @@ class AppDataStorage {
   }
 
   static Future<bool?> getDeviceStatus() async {
-    if (_status != null) return _status;
-
-    try {
-      final file = File(await _filePath);
-      if (await file.exists()) {
-        final content = await file.readAsString();
-        final data = jsonDecode(content);
-        // Ensure proper boolean conversion
-        final statusValue = data['status'];
-        _status = statusValue is bool
-            ? statusValue
-            : (statusValue == true || statusValue == 'true');
-        return _status;
-      }
-    } catch (e) {
-      // File doesn't exist or error reading
-    }
-    return null;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_deviceStatusKey);
   }
 
   static Future<bool> isLoggedIn() async {
     final email = await getEmail();
-    return email != null;
+    final tokenId = await getAccesTokenUID();
+    return email != null && tokenId != null;
   }
 
   static Future<void> clearAppData() async {
     _email = null;
-    _status = null;
-
     _accessTokenUID = null;
     _deviceUID = null;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_deviceStatusKey);
 
     try {
       final file = File(await _filePath);

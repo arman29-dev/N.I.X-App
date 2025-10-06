@@ -12,7 +12,7 @@ Future<http.Response> registerDevice(String deviceUID, String ownerUID) async {
   final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
   final interfaces = await NetworkInterface.list();
   final ipv4 = interfaces.firstWhere((i) => i.name == 'wlan0').addresses.first.address;
-  final token = TokenStorage.getAccessToken();
+  final token = await TokenStorage.getAccessToken();
   final tokenID = await AppDataStorage.getAccesTokenUID();
 
   if (tokenID == null) {

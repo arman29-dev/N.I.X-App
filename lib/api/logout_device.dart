@@ -8,7 +8,7 @@ Future<bool> logout() async {
   final accessTokenUID = await AppDataStorage.getAccesTokenUID();
   final deviceUID = await AppDataStorage.getDeviceUID();
 
-  final token = TokenStorage.getAccessToken();
+  final token = await TokenStorage.getAccessToken();
 
   final response = await http.post(
     Uri.parse(

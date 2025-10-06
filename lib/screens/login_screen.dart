@@ -49,13 +49,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (responseData.containsKey('access_token') &&
           responseData.containsKey('success')) {
-        TokenStorage.setToken(
+        await TokenStorage.setToken(
           responseData['access_token'],
           responseData['token_type'] ?? 'Bearer',
           responseData['access_token_uid']
         );
 
-        AppDataStorage.setAccessTokenUID(responseData['access_token_uid']);
+        await AppDataStorage.setAccessTokenUID(responseData['access_token_uid']);
+        await AppDataStorage.setEmail(_emailController.text); // Save email for login persistence
 
         ScaffoldMessenger.of(
           context,

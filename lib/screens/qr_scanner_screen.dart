@@ -50,7 +50,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         return;
       }
 
-      final storedToken = TokenStorage.getAccessToken();
+      final storedToken = await TokenStorage.getAccessToken();
 
       if (storedToken == null) {
         ScaffoldMessenger.of(

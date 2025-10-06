@@ -54,8 +54,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _updateStatuses() async {
     final status = await AppDataStorage.getDeviceStatus();
     setState(() {
-      deviceStatus = (status == true) ? 'Online' : 'Offline';
+      deviceStatus = (status ?? true) ? 'Online' : 'Offline';
     });
+
+    // Save the status if it was null (first time)
+    if (status == null) {
+      await AppDataStorage.setDeviceStatus(true);
+    }
 
     await _updateServerStatus();
   }
@@ -195,7 +200,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (stats) {
       await AppDataStorage.clearAppData();
-      TokenStorage.clearToken();
+      await TokenStorage.clearToken();
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       showDialog(
