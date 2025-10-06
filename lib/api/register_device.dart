@@ -1,6 +1,7 @@
+import 'dart:io';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
-import 'package:dart_ipify/dart_ipify.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:nix/utils/appdata_storage.dart';
 
@@ -9,7 +10,8 @@ import '../utils/token_storage.dart';
 Future<http.Response> registerDevice(String deviceUID, String ownerUID) async {
   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
   final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-  final ipv4 = await Ipify.ipv4();
+  final interfaces = await NetworkInterface.list();
+  final ipv4 = interfaces.firstWhere((i) => i.name == 'wlan0').addresses.first.address;
   final token = TokenStorage.getAccessToken();
   final tokenID = await AppDataStorage.getAccesTokenUID();
 
