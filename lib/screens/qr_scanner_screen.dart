@@ -1,9 +1,11 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:nix/api/register_device.dart';
 import 'package:nix/utils/appdata_storage.dart';
+
 import '../utils/app_colors.dart';
 import '../utils/token_storage.dart';
 
@@ -67,7 +69,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         return;
       }
       // Compare decoded token data
-      if (_compareTokenData(storedTokenData, qrTokenData)) {
+      if (_compareTokenData(storedTokenData, qrTokenData) && _isTokenValid(storedTokenData) && _isTokenValid(qrTokenData)) {
         final response = await registerDevice(deviceUid, qrTokenData['uid']);
 
         if (response.statusCode != 200) {
@@ -110,11 +112,16 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     }
   }
 
+  bool _isTokenValid(Map<String, dynamic> tokenData) {
+    final exp = tokenData['exp'] as int?;
+    if (exp == null) return false;
+    return DateTime.now().millisecondsSinceEpoch < exp * 1000;
+  }
+
   bool _compareTokenData(Map<String, dynamic> stored, Map<String, dynamic> qr) {
     // Compare relevant fields from decoded JWT data
     return stored['sub'] == qr['sub'] && // subject (email)
-        stored['uid'] == qr['uid'] && // user ID
-        stored['exp'] == qr['exp']; // expiration
+        stored['uid'] == qr['uid']; // user ID
   }
 
   @override
