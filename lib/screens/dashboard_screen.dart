@@ -6,6 +6,7 @@ import '../widgets/custom_button.dart';
 import '../utils/token_storage.dart';
 import '../utils/appdata_storage.dart';
 import '../utils/app_colors.dart';
+import '../utils/responsive.dart';
 
 import '../api/check_server_status.dart';
 import '../api/logout_device.dart';
@@ -63,77 +64,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Control Center'),
+        title: Text(
+          'Control Center',
+          style: TextStyle(fontSize: Responsive.sp(context, 18)),
+        ),
         backgroundColor: AppColors.accent,
       ),
       backgroundColor: AppColors.background,
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              RichText(
-                text: TextSpan(
-                  text: 'Server Status: ',
-                  style: const TextStyle(fontSize: 30),
-                  children: [
-                    TextSpan(
-                      text: serverStatus,
-                      style: TextStyle(
-                        fontSize: 30,
-                        color: serverStatus == 'Online'? Colors.green : Colors.redAccent,
-                      ),
-                    ),
-                  ],
-                ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: Responsive.padding(context, horizontal: 40, vertical: 20),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 500 : double.infinity,
               ),
-              const SizedBox(height: 10),
-              RichText(
-                text: TextSpan(
-                  text: 'Device Status: ',
-                  style: const TextStyle(fontSize: 30),
-                  children: [
-                    TextSpan(
-                      text: deviceStatus,
-                      style: TextStyle(
-                        fontSize: 30,
-                        color: deviceStatus == 'Online'? Colors.green : Colors.redAccent,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 100),
-              Row(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: CustomButton(
-                      onPressed: () => _refreshConnection(),
-                      text: 'Refresh',
-                      backgroundColor: Colors.cyan,
-                      icon: Icons.refresh,
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      text: 'Server Status: ',
+                      style: TextStyle(fontSize: Responsive.sp(context, 24)),
+                      children: [
+                        TextSpan(
+                          text: serverStatus,
+                          style: TextStyle(
+                            fontSize: Responsive.sp(context, 24),
+                            color: serverStatus == 'Online'? Colors.green : Colors.redAccent,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomButton(
-                      onPressed: () => _changeStatus(deviceStatus),
-                      text: deviceStatus == 'Online'? 'Go Offline' : 'Go Online',
-                      backgroundColor: deviceStatus == 'Online'? Colors.red : Colors.lightGreen,
-                      icon: deviceStatus == 'Online'? Icons.offline_bolt : Icons.online_prediction,
+                  SizedBox(height: Responsive.height(context) * 0.02),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      text: 'Device Status: ',
+                      style: TextStyle(fontSize: Responsive.sp(context, 24)),
+                      children: [
+                        TextSpan(
+                          text: deviceStatus,
+                          style: TextStyle(
+                            fontSize: Responsive.sp(context, 24),
+                            color: deviceStatus == 'Online'? Colors.green : Colors.redAccent,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  SizedBox(height: Responsive.height(context) * 0.1),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomButton(
+                          onPressed: () => _refreshConnection(),
+                          text: 'Refresh',
+                          backgroundColor: Colors.cyan,
+                          icon: Icons.refresh,
+                        ),
+                      ),
+                      SizedBox(width: Responsive.width(context) * 0.04),
+                      Expanded(
+                        child: CustomButton(
+                          onPressed: () => _changeStatus(deviceStatus),
+                          text: deviceStatus == 'Online'? 'Go Offline' : 'Go Online',
+                          backgroundColor: deviceStatus == 'Online'? Colors.red : Colors.lightGreen,
+                          icon: deviceStatus == 'Online'? Icons.offline_bolt : Icons.online_prediction,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: Responsive.height(context) * 0.03),
+                  CustomOutlinedButton(
+                    onPressed: () => _showLogoutConfirmation(context),
+                    text: 'Logout',
+                    borderColor: Colors.redAccent,
+                    icon: Icons.logout,
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              CustomOutlinedButton(
-                onPressed: () => _showLogoutConfirmation(context),
-                text: 'Logout',
-                borderColor: Colors.redAccent,
-                icon: Icons.logout,
-              ),
-            ],
+            ),
           ),
         ),
       ),

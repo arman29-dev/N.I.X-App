@@ -6,6 +6,7 @@ import '../widgets/custom_button.dart';
 import '../utils/app_colors.dart';
 import '../utils/token_storage.dart';
 import '../utils/appdata_storage.dart';
+import '../utils/responsive.dart';
 import '../api/login.dart';
 import 'registration_screen.dart';
 import 'qr_scanner_screen.dart';
@@ -91,103 +92,118 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0),
-          child: Container(
-            padding: const EdgeInsets.all(30.0),
-            decoration: BoxDecoration(
-              color: AppColors.cardBackground,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Welcome Back',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 40),
-                CustomTextField(
-                  hintText: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                  controller: _emailController,
-                ),
-                const SizedBox(height: 20),
-                CustomTextField(
-                  hintText: 'Password',
-                  isPassword: true,
-                  controller: _passwordController,
-                ),
-                const SizedBox(height: 20),
-                CustomTextField(
-                  hintText: '2FA-OTP',
-                  keyboardType: TextInputType.number,
-                  controller: _otpController,
-                ),
-                const SizedBox(height: 40),
-                CustomButton(
-                  text: _isLoading ? 'Logging in...' : 'Login',
-                  onPressed: _isLoading ? () {} : _handleLogin,
-                  backgroundColor: AppColors.accent,
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.accent),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Login with Passkey',
-                      style: TextStyle(
-                        color: AppColors.accent,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: Responsive.padding(context, horizontal: 30, vertical: 20),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.isDesktop(context) ? 400 : double.infinity,
+              ),
+              padding: EdgeInsets.all(Responsive.width(context) * 0.08),
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Welcome Back',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: Responsive.sp(context, 28),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(height: 30),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: () {},
-                      child: const Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: Colors.redAccent, fontSize: 14),
+                  SizedBox(height: Responsive.height(context) * 0.05),
+                  CustomTextField(
+                    hintText: 'Email',
+                    keyboardType: TextInputType.emailAddress,
+                    controller: _emailController,
+                  ),
+                  SizedBox(height: Responsive.height(context) * 0.025),
+                  CustomTextField(
+                    hintText: 'Password',
+                    isPassword: true,
+                    controller: _passwordController,
+                  ),
+                  SizedBox(height: Responsive.height(context) * 0.025),
+                  CustomTextField(
+                    hintText: '2FA-OTP',
+                    keyboardType: TextInputType.number,
+                    controller: _otpController,
+                  ),
+                  SizedBox(height: Responsive.height(context) * 0.05),
+                  CustomButton(
+                    text: _isLoading ? 'Logging in...' : 'Login',
+                    onPressed: _isLoading ? () {} : _handleLogin,
+                    backgroundColor: AppColors.accent,
+                  ),
+                  SizedBox(height: Responsive.height(context) * 0.025),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.accent),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Login with Passkey',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: Responsive.sp(context, 16),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                    const Text(
-                      '  |  ',
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegistrationScreen(),
+                  ),
+                  SizedBox(height: Responsive.height(context) * 0.04),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () {},
+                        child: Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 14,
                           ),
-                        );
-                      },
-                      child: const Text(
-                        'Create a New Account',
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      Text(
+                        '  |  ',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RegistrationScreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Create a New Account',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

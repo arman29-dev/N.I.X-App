@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
+import '../utils/responsive.dart';
 
 class CustomTextField extends StatefulWidget {
   final String hintText;
@@ -25,7 +26,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 50,
+      height: Responsive.height(context) * 0.065,
       decoration: BoxDecoration(
         color: AppColors.textFieldBackground,
         borderRadius: BorderRadius.circular(8),
@@ -34,20 +35,27 @@ class _CustomTextFieldState extends State<CustomTextField> {
         controller: widget.controller,
         obscureText: widget.isPassword ? _obscureText : false,
         keyboardType: widget.keyboardType,
-        style: const TextStyle(color: Colors.white),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: Responsive.sp(context, 16),
+        ),
         decoration: InputDecoration(
           hintText: widget.hintText,
-          hintStyle: const TextStyle(
+          hintStyle: TextStyle(
             color: Colors.grey,
-            fontSize: 16,
+            fontSize: Responsive.sp(context, 16),
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: Responsive.width(context) * 0.04,
+            vertical: Responsive.height(context) * 0.018,
+          ),
           suffixIcon: widget.isPassword
               ? IconButton(
                   icon: Icon(
                     _obscureText ? Icons.visibility_off : Icons.visibility,
                     color: Colors.grey,
+                    size: Responsive.sp(context, 20),
                   ),
                   onPressed: () {
                     setState(() {
