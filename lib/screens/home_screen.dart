@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../widgets/logo_widget.dart';
 import '../widgets/custom_button.dart';
 import '../utils/app_colors.dart';
+import '../utils/appdata_storage.dart';
 
 import 'login_screen.dart';
 
@@ -16,6 +17,20 @@ class HomeScreen extends StatelessWidget {
     );
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       throw Exception('Could not launch $url');
+    }
+  }
+
+  Future<void> _handleLogin(BuildContext context) async {
+    final isLoggedIn = await AppDataStorage.isLoggedIn();
+    if (isLoggedIn) {
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
     }
   }
 
@@ -42,14 +57,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 100),
               CustomButton(
                 text: 'Login',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(),
-                    ),
-                  );
-                },
+                onPressed: () => _handleLogin(context),
                 backgroundColor: AppColors.accent,
               ),
               const SizedBox(height: 20),
