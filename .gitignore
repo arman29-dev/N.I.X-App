@@ -43,3 +43,6 @@ app.*.map.json
 # App Specifics
 /test
 /web
+/linux
+/macos
+/windows
