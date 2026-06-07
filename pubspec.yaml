@@ -3,7 +3,7 @@ description: "Your private AI agent to help you with all your work"
 publish_to: 'none'
 
 
-version: 2.2.0
+version: 2.2.2
 
 
 environment:
