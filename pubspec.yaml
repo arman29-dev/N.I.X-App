@@ -23,6 +23,11 @@ dependencies:
   device_info_plus: ^12.1.0
   dart_ipify: ^1.1.1
   path_provider: ^2.1.5
+  web_socket_channel: ^3.0.1
+  flutter_background_service: ^5.0.0
+  package_info_plus: ^9.0.1
+  open_filex: ^4.7.0
+  flutter_markdown: ^0.7.7+1
 
 
 dev_dependencies:

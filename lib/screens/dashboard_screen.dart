@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../widgets/custom_button.dart';
@@ -9,7 +8,7 @@ import '../utils/appdata_storage.dart';
 import '../utils/app_colors.dart';
 import '../utils/responsive.dart';
 
-import '../api/status_sync.dart';
+import '../services/device_ws.dart';
 import '../api/logout_device.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -22,36 +21,71 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   String serverStatus = 'Offline';
   String deviceStatus = 'Offline';
-  Timer? _timer;
+  StreamSubscription<Map<String, dynamic>>? _wsSub;
 
   @override
   void initState() {
     super.initState();
     _updateDeviceStatus();
-    _updateServerStatus();
-    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _updateDeviceStatus();
-      _updateServerStatus();
+    _connectWS();
+  }
+
+  void _connectWS() {
+    if (!DeviceWS().isConnected) {
+      DeviceWS().connect();
+    }
+    _wsSub = DeviceWS().messages.listen(_handleWSMessage);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (DeviceWS().isConnected) {
+        DeviceWS().sendCommand('refresh');
+        setState(() => serverStatus = 'Online');
+      } else {
+        setState(() => serverStatus = 'Connecting...');
+      }
     });
+  }
+
+  void _handleWSMessage(Map<String, dynamic> msg) {
+    final type = msg['type'] as String?;
+
+    if (type == 'command') {
+      if (msg['action'] == 'logout') {
+        _forceLogout();
+        return;
+      }
+    }
+
+    if (type == 'response') {
+      final action = msg['action'] as String?;
+      final data = msg['data'] as Map<String, dynamic>?;
+
+      if (action == 'toggle_status' && data != null) {
+        final isOnline = data['device_status'] as bool?;
+        if (isOnline != null) {
+          AppDataStorage.setDeviceStatus(isOnline);
+          setState(() {
+            deviceStatus = isOnline ? 'Online' : 'Offline';
+            serverStatus = 'Online';
+          });
+        }
+      } else if (action == 'refresh' && data != null) {
+        final device = data['device'] as Map<String, dynamic>?;
+        if (device != null) {
+          final isOnline = device['is_active'] as bool? ?? true;
+          AppDataStorage.setDeviceStatus(isOnline);
+          setState(() {
+            deviceStatus = isOnline ? 'Online' : 'Offline';
+            serverStatus = 'Online';
+          });
+        }
+      }
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _wsSub?.cancel();
     super.dispose();
-  }
-
-  Future<void> _updateServerStatus() async {
-    try {
-      final result = await getServerStatus();
-      setState(() {
-        serverStatus = (result == true) ? 'Online' : 'Offline';
-      });
-    } catch (_) {
-      setState(() {
-        serverStatus = 'Error';
-      });
-    }
   }
 
   Future<void> _updateDeviceStatus() async {
@@ -60,7 +94,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       deviceStatus = (status ?? true) ? 'Online' : 'Offline';
     });
 
-    // Save the status if it was null (first time)
     if (status == null) {
       await AppDataStorage.setDeviceStatus(true);
     }
@@ -170,18 +203,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _refreshConnection() async {
-    await _updateServerStatus();
-    _updateServerStatus();
+    if (!DeviceWS().isConnected) {
+      setState(() => serverStatus = 'Connecting...');
+      await DeviceWS().connect();
+      await Future.delayed(const Duration(seconds: 2));
+    }
+    if (DeviceWS().isConnected) {
+      DeviceWS().sendCommand('refresh');
+    }
   }
 
-  void _changeDeviceStatus() async {
-    final res = await toggleDeviceStatus();
-    final resData = jsonDecode(res.body);
-
-    if (res.statusCode == 200) {
-      AppDataStorage.setDeviceStatus(resData['device_status']);
-    }
-    _updateDeviceStatus();
+  void _changeDeviceStatus() {
+    DeviceWS().sendCommand('toggle_status');
   }
 
   void _showLogoutConfirmation(BuildContext context) {
@@ -213,36 +246,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _logout() async {
-    bool stats = await logout();
-    if (!mounted) return;
+    try {
+      await logout(); // best-effort server cleanup
+    } catch (_) {
+      // Server cleanup is best-effort; continue with local logout
+    }
+    await _forceLogout();
+  }
 
-    if (stats) {
-      await AppDataStorage.clearAppData();
-      await TokenStorage.clearToken();
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        barrierColor: AppColors.cardBackground,
-        builder: (context) => AlertDialog(
-          title: const Text('Logout Error'),
-          content: const Text(
-            'You were unable to logout. Most probably a server issue.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text(
-                'Stay Logged-In',
-                style: TextStyle(color: Colors.green),
-              ),
-            ),
-          ],
-        ),
-      );
+  Future<void> _forceLogout() async {
+    await DeviceWS().disconnect();
+    await AppDataStorage.clearAppData();
+    await TokenStorage.clearToken();
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/qr-scanner');
     }
   }
 }

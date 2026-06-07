@@ -46,3 +46,6 @@ app.*.map.json
 /linux
 /macos
 /windows
+
+# CI/CD
+.github/

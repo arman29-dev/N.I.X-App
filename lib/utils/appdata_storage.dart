@@ -9,6 +9,10 @@ class AppDataStorage {
   static String? _deviceUID;
 
   static const String _deviceStatusKey = 'device_status';
+  static const String _batteryOptAskedKey = 'battery_opt_asked';
+  static const String _devUnlockedKey = 'dev_unlocked';
+  static const String _notificationEmailKey = 'notification_email';
+  static const String _backgroundRunKey = 'background_run';
 
   static Future<String> get _filePath async {
     final directory = await getApplicationDocumentsDirectory();
@@ -106,6 +110,46 @@ class AppDataStorage {
   static Future<bool?> getDeviceStatus() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_deviceStatusKey);
+  }
+
+  static Future<bool> getBatteryOptAsked() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_batteryOptAskedKey) ?? false;
+  }
+
+  static Future<void> setBatteryOptAsked(bool asked) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_batteryOptAskedKey, asked);
+  }
+
+  static Future<void> setDevUnlocked(bool unlocked) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_devUnlockedKey, unlocked);
+  }
+
+  static Future<bool> getDevUnlocked() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_devUnlockedKey) ?? false;
+  }
+
+  static Future<void> setNotificationEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_notificationEmailKey, email);
+  }
+
+  static Future<String?> getNotificationEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_notificationEmailKey);
+  }
+
+  static Future<void> setBackgroundRun(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_backgroundRunKey, value);
+  }
+
+  static Future<bool> getBackgroundRun() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_backgroundRunKey) ?? true;
   }
 
   static Future<bool> isLoggedIn() async {

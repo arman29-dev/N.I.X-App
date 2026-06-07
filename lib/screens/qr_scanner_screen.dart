@@ -2,12 +2,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:nix/api/register_device.dart';
+import 'package:nix/services/device_ws.dart';
 import 'package:nix/utils/appdata_storage.dart';
+import 'package:nix/utils/token_storage.dart';
 
 import '../utils/app_colors.dart';
-import '../utils/token_storage.dart';
 import '../utils/responsive.dart';
 
 class QRScannerScreen extends StatefulWidget {
@@ -21,16 +21,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   MobileScannerController cameraController = MobileScannerController();
   bool isProcessing = false;
 
-  Map<String, dynamic>? _decodeJWT(String token, String secret) {
-    try {
-      final jwt = JWT.verify(token, SecretKey(secret));
-      return jwt.payload;
-    } catch (e) {
-      print('JWT decode error: $e');
-      return null;
-    }
-  }
-
   Future<void> _processQRData(String qrData) async {
     if (isProcessing) return;
 
@@ -41,66 +31,51 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     try {
       final qrJson = jsonDecode(qrData);
       final deviceUid = qrJson['device_uid'] as String?;
-      final secret = qrJson['secret'] as String?;
       final userAccessToken = qrJson['user_access_token'] as String?;
-      if (deviceUid == null || secret == null || userAccessToken == null) {
+      final accessTokenUid = qrJson['access_token_uid'] as String?;
+      final ownerUid = qrJson['owner_uid'] as String?;
+
+      if (deviceUid == null || userAccessToken == null || accessTokenUid == null || ownerUid == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Invalid QR Code: Missing required data')),
         );
         return;
       }
 
-      final storedToken = await TokenStorage.getAccessToken();
+      final response = await registerDevice(
+        deviceUid,
+        ownerUid,
+        jwt: userAccessToken,
+        accessTokenUid: accessTokenUid,
+      );
 
-      if (storedToken == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('No stored token found')));
-        return;
-      }
-
-      // Decode both JWT tokens using the secret
-      final storedTokenData = _decodeJWT(storedToken, secret);
-      final qrTokenData = _decodeJWT(userAccessToken, secret);
-
-      if (storedTokenData == null || qrTokenData == null) {
+      if (response.statusCode != 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to decode JWT tokens')),
+          SnackBar(content: Text('Server error: ${response.statusCode}')),
         );
         return;
       }
-      // Compare decoded token data
-      if (_compareTokenData(storedTokenData, qrTokenData) && _isTokenValid(storedTokenData) && _isTokenValid(qrTokenData)) {
-        final response = await registerDevice(deviceUid, qrTokenData['uid']);
 
-        if (response.statusCode != 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Server error: ${response.statusCode}')),
-          );
-          return;
-        }
+      final responseData = jsonDecode(response.body);
+      final stats = responseData['stats'];
+      final msg = responseData['message'] ?? responseData['msg'];
+      final deviceStatus = responseData['device_status'];
 
-        final responseData = jsonDecode(response.body);
-        final stats = responseData['stats'];
-        final msg = responseData['message'] ?? responseData['msg'];
-        final deviceStatus = responseData['device_status'];
-
-        if (stats != 200) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(msg)));
-        } else {
-          AppDataStorage.setDeviceStatus(deviceStatus);
-          AppDataStorage.setDeviceUID(deviceUid);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(msg)));
-          Navigator.pushReplacementNamed(context, '/dashboard');
-        }
-      } else {
+      if (stats != 200) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Token does not match')));
+        ).showSnackBar(SnackBar(content: Text(msg)));
+      } else {
+        await TokenStorage.setToken(userAccessToken, 'Bearer', accessTokenUid);
+        await AppDataStorage.setAccessTokenUID(accessTokenUid);
+        await AppDataStorage.setDeviceStatus(deviceStatus ?? true);
+        await AppDataStorage.setDeviceUID(deviceUid);
+
+        DeviceWS().connect();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } catch (e) {
       ScaffoldMessenger.of(
@@ -111,18 +86,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         isProcessing = false;
       });
     }
-  }
-
-  bool _isTokenValid(Map<String, dynamic> tokenData) {
-    final exp = tokenData['exp'] as int?;
-    if (exp == null) return false;
-    return DateTime.now().millisecondsSinceEpoch < exp * 1000;
-  }
-
-  bool _compareTokenData(Map<String, dynamic> stored, Map<String, dynamic> qr) {
-    // Compare relevant fields from decoded JWT data
-    return stored['sub'] == qr['sub'] && // subject (email)
-        stored['uid'] == qr['uid']; // user ID
   }
 
   @override
@@ -161,12 +124,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             child: Container(),
           ),
           Center(
-            child: Container(
+            child: SizedBox(
               width: scanAreaSize,
               height: scanAreaSize,
               child: Stack(
                 children: [
-                  // Top-left corner
                   Positioned(
                     top: 0,
                     left: 0,
@@ -181,7 +143,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                       ),
                     ),
                   ),
-                  // Top-right corner
                   Positioned(
                     top: 0,
                     right: 0,
@@ -196,7 +157,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                       ),
                     ),
                   ),
-                  // Bottom-left corner
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -211,7 +171,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                       ),
                     ),
                   ),
-                  // Bottom-right corner
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -254,7 +213,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   Text(
                     'Position the QR code within the frame to scan',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: Responsive.sp(context, 14),
                     ),
                     textAlign: TextAlign.center,
@@ -283,7 +242,7 @@ class ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.black.withOpacity(0.6)
+      ..color = Colors.black.withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;
 
     final centerX = size.width / 2;

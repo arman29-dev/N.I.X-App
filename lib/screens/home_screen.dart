@@ -1,74 +1,164 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-import '../widgets/logo_widget.dart';
-import '../widgets/custom_button.dart';
+import 'package:flutter/services.dart';
+import '../widgets/sliding_selector.dart';
+import '../widgets/stats_panel.dart';
+import '../widgets/message_panel.dart';
+import '../widgets/syslogs_panel.dart';
+import '../widgets/dev_panel.dart';
 import '../utils/app_colors.dart';
 import '../utils/appdata_storage.dart';
 
-import 'login_screen.dart';
+List<SectionData> _sections = const [
+  SectionData(label: 'Stats', icon: Icons.dashboard, activeColor: Color(0xFF1DB954)),
+  SectionData(label: 'Message', icon: Icons.terminal, activeColor: Color(0xFF4ECDC4)),
+  SectionData(label: 'SysLogs', icon: Icons.receipt_long, activeColor: Color(0xFF42A5F5)),
+  SectionData(label: 'Dev', icon: Icons.code, activeColor: Color(0xFFFFA726)),
+];
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  Future<void> _launchRegistration() async {
-    final Uri url = Uri.parse(
-      'https://quiet-pup-summary.ngrok-free.app/web/home',
-    );
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not launch $url');
-    }
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+  int _currentTab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkBatteryOptimization();
+    });
   }
 
-  Future<void> _handleLogin(BuildContext context) async {
-    final isLoggedIn = await AppDataStorage.isLoggedIn();
-    if (isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LoginScreen(),
+  Future<void> _checkBatteryOptimization() async {
+    if (!Platform.isAndroid) return;
+    final alreadyAsked = await AppDataStorage.getBatteryOptAsked();
+    if (alreadyAsked) return;
+    await AppDataStorage.setBatteryOptAsked(true);
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1F2A),
+        title: const Text('Background Connection', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'N.I.X needs to run in the background to stay connected.\n\nPlease disable battery optimization for this app.',
+          style: TextStyle(color: Colors.white70),
         ),
-      );
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Skip', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _openBatteryOptimizationSettings();
+            },
+            child: const Text('Open Settings', style: TextStyle(color: Colors.cyan)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openBatteryOptimizationSettings() async {
+    const platform = MethodChannel('nix/battery_optimization');
+    try {
+      await platform.invokeMethod('openBatteryOptimizationSettings');
+    } catch (e) {
+      debugPrint('Battery optimization: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDev = _selectedIndex == 3;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const LogoWidget(),
-              const SizedBox(height: 30),
-              const Text(
-                'N.I.X - Your Private Agent',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 100),
-              CustomButton(
-                text: 'Login',
-                onPressed: () => _handleLogin(context),
-                backgroundColor: AppColors.accent,
-              ),
-              const SizedBox(height: 20),
-              CustomButton(
-                text: 'Register',
-                onPressed: _launchRegistration,
-                backgroundColor: AppColors.accent,
-              ),
-            ],
+      appBar: AppBar(
+        title: const Text('N.I.X'),
+        backgroundColor: AppColors.accent,
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          SlidingSelector(
+            selectedIndex: _selectedIndex,
+            onChanged: (i) {
+              setState(() {
+                _selectedIndex = i;
+                _currentTab = 0;
+              });
+            },
+            sections: _sections,
           ),
-        ),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                StatsPanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
+                MessagePanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
+                SysLogsPanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
+                const DevPanel(),
+              ],
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: isDev
+          ? null
+          : _buildBottomNav(),
+    );
+  }
+
+  void _onTabChanged(int tab) {
+    setState(() => _currentTab = tab);
+  }
+
+  Widget _buildBottomNav() {
+    List<BottomNavigationBarItem> items;
+    switch (_selectedIndex) {
+      case 0:
+        items = const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
+        ];
+        break;
+      case 1:
+        items = const [
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+          BottomNavigationBarItem(icon: Icon(Icons.terminal), label: 'Terminal'),
+        ];
+        break;
+      case 2:
+        items = const [
+          BottomNavigationBarItem(icon: Icon(Icons.dns), label: 'Server'),
+          BottomNavigationBarItem(icon: Icon(Icons.phone_android), label: 'Device'),
+        ];
+        break;
+      default:
+        items = const [];
+    }
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        canvasColor: const Color(0xFF1C1F2A),
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _currentTab,
+        onTap: _onTabChanged,
+        items: items,
+        selectedItemColor: _sections[_selectedIndex].activeColor,
+        unselectedItemColor: Colors.white38,
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
