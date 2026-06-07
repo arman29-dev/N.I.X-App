@@ -13,6 +13,7 @@ class AppDataStorage {
   static const String _devUnlockedKey = 'dev_unlocked';
   static const String _notificationEmailKey = 'notification_email';
   static const String _backgroundRunKey = 'background_run';
+  static const String _lastInstalledReleaseKey = 'last_installed_release';
 
   static Future<String> get _filePath async {
     final directory = await getApplicationDocumentsDirectory();
@@ -156,6 +157,16 @@ class AppDataStorage {
     final email = await getEmail();
     final tokenId = await getAccesTokenUID();
     return email != null && tokenId != null;
+  }
+
+  static Future<void> setLastInstalledRelease(String tag) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastInstalledReleaseKey, tag);
+  }
+
+  static Future<String?> getLastInstalledRelease() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastInstalledReleaseKey);
   }
 
   static Future<void> clearAppData() async {

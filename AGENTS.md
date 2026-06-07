@@ -62,6 +62,11 @@ Key packages added: `flutter_svg` (^2.0.17) for SVG rendering in AppBar header.
 - **Logout (corrected)**: Dev Panel Settings → Logout → API call → disconnect WS → clear local data → stop background service → navigate to `/qr-scanner` (not `/dashboard`)
 - **App icons**: N.I.X hexagon used across three Android resources — launcher icon (`ic_launcher_vector.xml`, adaptive via `mipmap-anydpi-v26/ic_launcher.xml` with dark `#0D1117` background), notification icon (`ic_notification.xml`), and foreground service notification override (`drawable-anydpi-v26/ic_bg_service_small.xml` which overrides `flutter_background_service_android`'s built-in leaf icon via resource priority). Header icon in HomeScreen uses `SvgPicture.asset` with `colorFilter: Colors.black` on the cyan AppBar background.
 
+## Version management
+
+- **App version** is read from `PackageInfo.fromPlatform().version` (maps to `pubspec.yaml` `version:` field at build time)
+- **Installed release tracking**: After a successful APK install, the GitHub release tag (e.g. `v2.2.1`) is stored in SharedPreferences via `AppDataStorage.setLastInstalledRelease(tag)`. On subsequent update checks, if the latest GitHub release matches the stored tag, the update is suppressed — preventing infinite update loops when `pubspec.yaml` hasn't been bumped yet
+
 ## Known issues
 
 - Registration API is a stub (`// TODO: Implement registration API call`)

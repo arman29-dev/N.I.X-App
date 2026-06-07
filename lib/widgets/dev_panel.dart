@@ -130,6 +130,14 @@ class _DevPanelState extends State<DevPanel> {
             _latestVersion ?? '',
             _currentVersion,
           );
+          if (_hasUpdate) {
+            AppDataStorage.getLastInstalledRelease().then((lastInstalled) {
+              if (lastInstalled != null && _latestVersion != null &&
+                  !_compareVersions(_latestVersion!, lastInstalled)) {
+                setState(() => _hasUpdate = false);
+              }
+            });
+          }
         } else {
           _checkFailed = true;
         }
@@ -845,6 +853,9 @@ class _DevPanelState extends State<DevPanel> {
                         ),
                       );
                     }
+                  }
+                  if (_latestVersion != null) {
+                    await AppDataStorage.setLastInstalledRelease(_latestVersion!);
                   }
                   setState(() {
                     _localDownloadedPath = null;
