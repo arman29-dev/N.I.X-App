@@ -83,11 +83,10 @@ class _DevPanelState extends State<DevPanel> {
   }
 
   Future<void> _refreshVersion() async {
-    // final info = await PackageInfo.fromPlatform();
+    final info = await PackageInfo.fromPlatform();
     if (mounted) {
       setState(() {
-        // _currentVersion = info.version;
-        _currentVersion = 'v2.0.0';
+        _currentVersion = info.version;
         if (_latestVersion != null) {
           _hasUpdate = _compareVersions(_latestVersion!, _currentVersion);
         }
