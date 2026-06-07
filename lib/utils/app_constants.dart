@@ -13,4 +13,6 @@ class AppConstants {
 
   static const String notificationChannelId = 'nix_background_channel';
   static const String notificationChannelName = 'N.I.X Background Service';
+  static const String updateNotificationChannelId = 'nix_update_channel';
+  static const String updateNotificationChannelName = 'N.I.X Updates';
 }

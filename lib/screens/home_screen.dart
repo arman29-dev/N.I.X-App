@@ -6,6 +6,7 @@ import '../widgets/stats_panel.dart';
 import '../widgets/message_panel.dart';
 import '../widgets/syslogs_panel.dart';
 import '../widgets/dev_panel.dart';
+import '../utils/app_navigation.dart';
 import '../utils/app_colors.dart';
 import '../utils/appdata_storage.dart';
 
@@ -26,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   int _currentTab = 0;
+  final ValueNotifier<int> _devTabController = ValueNotifier<int>(0);
 
   @override
   void initState() {
@@ -33,6 +35,26 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkBatteryOptimization();
     });
+    AppNavigation.onOpenUpdates = _openDevUpdatesTab;
+    if (AppNavigation.pendingOpenUpdates) {
+      AppNavigation.pendingOpenUpdates = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openDevUpdatesTab());
+    }
+  }
+
+  @override
+  void dispose() {
+    AppNavigation.onOpenUpdates = null;
+    _devTabController.dispose();
+    super.dispose();
+  }
+
+  void _openDevUpdatesTab() {
+    setState(() {
+      _selectedIndex = 3;
+      _currentTab = 0;
+    });
+    _devTabController.value = 0;
   }
 
   Future<void> _checkBatteryOptimization() async {
@@ -107,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 StatsPanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
                 MessagePanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
                 SysLogsPanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
-                const DevPanel(),
+                DevPanel(devTabController: _devTabController),
               ],
             ),
           ),

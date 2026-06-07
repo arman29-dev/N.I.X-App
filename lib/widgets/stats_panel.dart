@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:flutter_background_service/flutter_background_service.dart';
 
 import '../services/device_ws.dart';
+import '../utils/app_constants.dart';
 import '../utils/appdata_storage.dart';
 import '../utils/token_storage.dart';
 import '../utils/app_colors.dart';
@@ -26,6 +28,8 @@ class StatsPanel extends StatefulWidget {
 class _StatsPanelState extends State<StatsPanel> {
   String serverStatus = 'Offline';
   String deviceStatus = 'Offline';
+  int? _pingMs;
+  bool _pinging = false;
   String? _selfDeviceUid;
   List<Map<String, dynamic>> _devices = [];
   StreamSubscription<Map<String, dynamic>>? _wsSub;
@@ -50,6 +54,7 @@ class _StatsPanelState extends State<StatsPanel> {
       _prevOnConnectionChange?.call(connected);
       if (connected) {
         DeviceWS().sendCommand('get_devices');
+        _measurePing();
         if (mounted) {
           setState(() => serverStatus = 'Online');
         }
@@ -58,6 +63,7 @@ class _StatsPanelState extends State<StatsPanel> {
 
     if (DeviceWS().isConnected) {
       DeviceWS().sendCommand('get_devices');
+      _measurePing();
       setState(() => serverStatus = 'Online');
     } else {
       Future.delayed(const Duration(seconds: 2), () {
@@ -196,6 +202,29 @@ class _StatsPanelState extends State<StatsPanel> {
     super.dispose();
   }
 
+  Future<void> _measurePing() async {
+    if (_pinging) return;
+    setState(() => _pinging = true);
+    final start = DateTime.now();
+    try {
+      await http.get(Uri.parse('${AppConstants.serverUrl}/ping'));
+      final ms = DateTime.now().difference(start).inMilliseconds;
+      if (mounted) {
+        setState(() {
+          _pingMs = ms;
+          _pinging = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _pingMs = null;
+          _pinging = false;
+        });
+      }
+    }
+  }
+
   Future<void> _updateDeviceStatus() async {
     final status = await AppDataStorage.getDeviceStatus();
     setState(() {
@@ -214,6 +243,7 @@ class _StatsPanelState extends State<StatsPanel> {
     }
     if (DeviceWS().isConnected) {
       DeviceWS().sendCommand('get_devices');
+      _measurePing();
       setState(() => serverStatus = 'Online');
     }
   }
@@ -360,6 +390,8 @@ class _StatsPanelState extends State<StatsPanel> {
                   title: 'SERVER STATUS',
                   status: serverStatus,
                   subtitle: 'Connected to N.I.X Server',
+                  pingMs: _pingMs,
+                  pinging: _pinging,
                   button: CustomButton(
                     onPressed: _refreshConnection,
                     text: 'Refresh',
@@ -493,6 +525,8 @@ class _StatusCard extends StatelessWidget {
   final String status;
   final String subtitle;
   final Widget button;
+  final int? pingMs;
+  final bool pinging;
 
   const _StatusCard({
     required this.icon,
@@ -500,11 +534,18 @@ class _StatusCard extends StatelessWidget {
     required this.status,
     required this.subtitle,
     required this.button,
+    this.pingMs,
+    this.pinging = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isOnline = status == 'Online';
+    final pingText = pinging
+        ? 'Pinging...'
+        : pingMs != null
+            ? '${pingMs}ms'
+            : '\u2014';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -570,6 +611,31 @@ class _StatusCard extends StatelessWidget {
                 fontSize: 13,
                 color: Colors.grey[400],
               ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Row(
+              children: [
+                Icon(Icons.wifi_tethering, size: 12, color: Colors.grey[500]),
+                const SizedBox(width: 6),
+                Text(
+                  'Ping: ',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                Text(
+                  pingText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: pingMs != null ? Colors.green : Colors.grey[500],
+                    fontWeight: pingMs != null ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),

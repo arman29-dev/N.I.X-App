@@ -24,6 +24,49 @@ class UpdateService {
       StreamController<double>.broadcast();
   Stream<double> get progressStream => _progressController.stream;
 
+  final StreamController<Map<String, dynamic>> _updateFoundController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Stream<Map<String, dynamic>> get onUpdateAvailable =>
+      _updateFoundController.stream;
+
+  Timer? _autoCheckTimer;
+
+  void startAutoCheck(String currentVersion) {
+    _runCheck(currentVersion);
+    _autoCheckTimer = Timer.periodic(
+      const Duration(hours: 24),
+      (_) => _runCheck(currentVersion),
+    );
+  }
+
+  void stopAutoCheck() {
+    _autoCheckTimer?.cancel();
+    _autoCheckTimer = null;
+  }
+
+  Future<void> _runCheck(String currentVersion) async {
+    final release = await checkForUpdate();
+    if (release != null) {
+      final latestTag = release['tag_name'] as String? ?? '';
+      if (_isNewerVersion(latestTag, currentVersion)) {
+        _updateFoundController.add(release);
+      }
+    }
+  }
+
+  bool _isNewerVersion(String latest, String current) {
+    final a = latest.replaceFirst(RegExp(r'^v'), '');
+    final b = current.replaceFirst(RegExp(r'^v'), '');
+    if (a.isEmpty || b.isEmpty) return false;
+    final partsA = a.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final partsB = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    for (int i = 0; i < partsA.length && i < partsB.length; i++) {
+      if (partsA[i] > partsB[i]) return true;
+      if (partsA[i] < partsB[i]) return false;
+    }
+    return partsA.length > partsB.length;
+  }
+
   Future<Map<String, dynamic>?> checkForUpdate() async {
     try {
       final uri = Uri.parse(
@@ -54,8 +97,8 @@ class UpdateService {
     return null;
   }
 
-  Future<void> downloadAndInstall(Map<String, dynamic> releaseData) async {
-    if (_isDownloading) return;
+  Future<bool> downloadAndInstall(Map<String, dynamic> releaseData) async {
+    if (_isDownloading) return false;
     _isDownloading = true;
     _downloadProgress = 0;
 
@@ -73,7 +116,7 @@ class UpdateService {
       if (apkUrl == null) {
         debugPrint('UpdateService: no APK asset found');
         _isDownloading = false;
-        return;
+        return false;
       }
 
       final apkResponse = await http.Client().send(
@@ -83,19 +126,31 @@ class UpdateService {
       if (apkResponse.statusCode != 200) {
         debugPrint('UpdateService: download failed with status ${apkResponse.statusCode}');
         _isDownloading = false;
-        return;
+        return false;
       }
 
       final dir = Directory.systemTemp;
       final file = File('${dir.path}/nix_update.apk');
       final sink = file.openWrite();
-      final total = apkResponse.contentLength ?? 0;
+      int total = apkResponse.contentLength ?? 0;
       int received = 0;
 
-      await for (final chunk in apkResponse.stream) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (total > 0) {
+      if (total > 0) {
+        await for (final chunk in apkResponse.stream) {
+          sink.add(chunk);
+          received += chunk.length;
+          _downloadProgress = received / total;
+          _progressController.add(_downloadProgress);
+        }
+      } else {
+        final bytes = await apkResponse.stream.toBytes();
+        total = bytes.length;
+        received = 0;
+        const chunkSize = 8192;
+        for (int offset = 0; offset < total; offset += chunkSize) {
+          final end = (offset + chunkSize > total) ? total : offset + chunkSize;
+          sink.add(bytes.sublist(offset, end));
+          received = end;
           _downloadProgress = received / total;
           _progressController.add(_downloadProgress);
         }
@@ -113,14 +168,21 @@ class UpdateService {
       if (result.type != ResultType.done) {
         debugPrint('UpdateService: open file returned ${result.type} — ${result.message}');
       }
+
+      _isDownloading = false;
+      return true;
     } catch (e) {
       debugPrint('UpdateService: download failed: $e');
-    } finally {
+      _downloadProgress = 0;
+      _progressController.add(0);
       _isDownloading = false;
+      return false;
     }
   }
 
   void dispose() {
+    _autoCheckTimer?.cancel();
     _progressController.close();
+    _updateFoundController.close();
   }
 }

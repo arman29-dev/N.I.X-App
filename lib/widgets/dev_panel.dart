@@ -15,7 +15,9 @@ import '../utils/app_colors.dart';
 import '../utils/token_storage.dart';
 
 class DevPanel extends StatefulWidget {
-  const DevPanel({super.key});
+  final ValueNotifier<int>? devTabController;
+
+  const DevPanel({super.key, this.devTabController});
 
   @override
   State<DevPanel> createState() => _DevPanelState();
@@ -26,6 +28,7 @@ class _DevPanelState extends State<DevPanel> {
   bool _unlocked = false;
   bool _passwordError = false;
   bool _obscurePassword = true;
+  VoidCallback? _devTabListener;
 
   String _currentVersion = '0.0.0';
   String? _latestVersion;
@@ -45,6 +48,9 @@ class _DevPanelState extends State<DevPanel> {
     _passwordController.dispose();
     _emailController.dispose();
     _progressSub?.cancel();
+    if (_devTabListener != null) {
+      widget.devTabController?.removeListener(_devTabListener!);
+    }
     super.dispose();
   }
 
@@ -133,7 +139,7 @@ class _DevPanelState extends State<DevPanel> {
     return partsA.length > partsB.length;
   }
 
-  void _downloadUpdate() {
+  void _downloadUpdate() async {
     final release = {
       'tag_name': _latestVersion,
       'body': _releaseBody,
@@ -141,26 +147,43 @@ class _DevPanelState extends State<DevPanel> {
       'assets': _releaseAssets,
     };
 
+    final messenger = ScaffoldMessenger.of(context);
     setState(() {
       _downloading = true;
+      _downloadProgress = 0;
       _downloadStatus = 'Downloading...';
     });
 
+    _progressSub?.cancel();
     _progressSub = UpdateService().progressStream.listen((progress) {
       if (mounted) {
         setState(() => _downloadProgress = progress);
       }
     });
 
-    UpdateService().downloadAndInstall(release).then((_) {
-      if (mounted) {
+    final success = await UpdateService().downloadAndInstall(release);
+    if (mounted) {
+      if (success) {
         setState(() {
           _downloading = false;
           _downloadProgress = 1.0;
           _downloadStatus = 'Download complete! Installing...';
         });
+      } else {
+        setState(() {
+          _downloading = false;
+          _downloadProgress = 0;
+          _downloadStatus = 'Download failed';
+        });
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Failed to download update'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
-    });
+    }
   }
 
   @override
@@ -254,6 +277,12 @@ class _DevPanelState extends State<DevPanel> {
     super.initState();
     _restoreUnlocked();
     _loadSettings();
+    _devTabListener = () {
+      if (mounted) {
+        setState(() => _devTabIndex = widget.devTabController!.value);
+      }
+    };
+    widget.devTabController?.addListener(_devTabListener!);
   }
 
   Future<void> _loadSettings() async {

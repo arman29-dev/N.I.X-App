@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'services/device_ws.dart';
 import 'services/log_service.dart';
+import 'services/update_service.dart';
+import 'utils/app_navigation.dart';
 import 'utils/token_storage.dart';
 import 'utils/appdata_storage.dart';
 import 'utils/app_constants.dart';
@@ -18,10 +21,63 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   _setupDebugPrintInterceptor();
   _wireDeviceWSNotifications();
+  _setupNotificationMethodChannel();
   runApp(const MyApp());
-  _requestNotificationPermission().then((_) {
-    _initializeBackgroundService();
+  _requestNotificationPermission().then((_) async {
+    await _initializeBackgroundService();
+    _checkLaunchIntent();
+    _startUpdateAutoCheck();
   });
+}
+
+void _setupNotificationMethodChannel() {
+  const channel = MethodChannel('nix/notifications');
+  channel.setMethodCallHandler((call) async {
+    if (call.method == 'openUpdates') {
+      AppNavigation.onOpenUpdates?.call();
+      AppNavigation.pendingOpenUpdates = AppNavigation.onOpenUpdates == null;
+    }
+    return null;
+  });
+}
+
+Future<void> _checkLaunchIntent() async {
+  try {
+    const channel = MethodChannel('nix/notifications');
+    final openUpdates = await channel.invokeMethod<bool>('getLaunchIntent');
+    if (openUpdates == true) {
+      AppNavigation.pendingOpenUpdates = true;
+    }
+  } catch (e) {
+    debugPrint('Launch intent check failed: $e');
+  }
+}
+
+Future<void> _startUpdateAutoCheck() async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    UpdateService().startAutoCheck(info.version);
+
+    UpdateService().onUpdateAvailable.listen((release) {
+      final tag = release['tag_name'] as String? ?? 'Update Available';
+      final body = release['body'] as String? ?? 'A new version of N.I.X is available';
+      _showUpdateNotification(tag, body);
+    });
+  } catch (e) {
+    debugPrint('Auto-check init failed: $e');
+  }
+}
+
+void _showUpdateNotification(String title, String body) {
+  try {
+    const channel = MethodChannel('nix/notifications');
+    channel.invokeMethod('showUpdateNotification', {
+      'title': title,
+      'body': body,
+    });
+  } catch (e) {
+    debugPrint('Show notification failed: $e');
+  }
 }
 
 Future<void> _requestNotificationPermission() async {
