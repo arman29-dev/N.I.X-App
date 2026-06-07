@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 import '../utils/app_constants.dart';
 
@@ -102,6 +103,7 @@ class UpdateService {
     _downloadProgress = 0;
 
     try {
+      final tagName = releaseData['tag_name'] as String? ?? 'latest';
       final assets = releaseData['assets'] as List<dynamic>? ?? [];
       String? apkUrl;
       for (final asset in assets) {
@@ -118,9 +120,9 @@ class UpdateService {
         return false;
       }
 
-      final apkResponse = await http.Client().send(
-        http.Request('GET', Uri.parse(apkUrl)),
-      );
+      final request = http.Request('GET', Uri.parse(apkUrl));
+      request.headers['Accept'] = 'application/octet-stream';
+      final apkResponse = await http.Client().send(request);
 
       if (apkResponse.statusCode != 200) {
         debugPrint('UpdateService: download failed with status ${apkResponse.statusCode}');
@@ -128,8 +130,23 @@ class UpdateService {
         return false;
       }
 
-      final dir = Directory.systemTemp;
-      final file = File('${dir.path}/nix_update.apk');
+      final extDir = await getExternalStorageDirectory();
+      if (extDir == null) {
+        debugPrint('UpdateService: external storage not available');
+        _isDownloading = false;
+        return false;
+      }
+
+      final downloadDir = Directory('${extDir.path}/Download');
+      if (!await downloadDir.exists()) {
+        await downloadDir.create(recursive: true);
+      }
+
+      final file = File('${downloadDir.path}/nix-$tagName.apk');
+      if (await file.exists()) {
+        await file.delete();
+      }
+
       final sink = file.openWrite();
       int total = apkResponse.contentLength ?? 0;
       int received = 0;
@@ -157,6 +174,17 @@ class UpdateService {
 
       await sink.flush();
       await sink.close();
+
+      final raf = await file.open(mode: FileMode.read);
+      final header = await raf.read(4);
+      await raf.close();
+      if (header.length < 4 || header[0] != 0x50 || header[1] != 0x4b) {
+        debugPrint('UpdateService: invalid APK (missing PK header)');
+        await file.delete();
+        _isDownloading = false;
+        return false;
+      }
+
       _downloadedPath = file.path;
       _downloadProgress = 1.0;
       _progressController.add(1.0);

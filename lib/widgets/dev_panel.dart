@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -40,7 +41,6 @@ class _DevPanelState extends State<DevPanel> {
   List<dynamic>? _releaseAssets;
   bool _downloading = false;
   double _downloadProgress = 0;
-  String? _downloadStatus;
   String? _localDownloadedPath;
   StreamSubscription<double>? _progressSub;
 
@@ -78,11 +78,21 @@ class _DevPanelState extends State<DevPanel> {
   }
 
   Future<void> _initAndCheck() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() => _currentVersion = info.version);
-    }
+    await _refreshVersion();
     _checkForUpdate();
+  }
+
+  Future<void> _refreshVersion() async {
+    // final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        // _currentVersion = info.version;
+        _currentVersion = 'v2.0.0';
+        if (_latestVersion != null) {
+          _hasUpdate = _compareVersions(_latestVersion!, _currentVersion);
+        }
+      });
+    }
   }
 
   void _lock() {
@@ -97,13 +107,13 @@ class _DevPanelState extends State<DevPanel> {
       _releaseAssets = null;
       _hasUpdate = false;
       _checkFailed = false;
-      _downloadStatus = null;
       _downloadProgress = 0;
       _localDownloadedPath = null;
     });
   }
 
   Future<void> _checkForUpdate() async {
+    await _refreshVersion();
     setState(() {
       _checking = true;
       _checkFailed = false;
@@ -153,7 +163,6 @@ class _DevPanelState extends State<DevPanel> {
     setState(() {
       _downloading = true;
       _downloadProgress = 0;
-      _downloadStatus = 'Downloading...';
     });
 
     _progressSub?.cancel();
@@ -169,14 +178,12 @@ class _DevPanelState extends State<DevPanel> {
         setState(() {
           _downloading = false;
           _downloadProgress = 1.0;
-          _downloadStatus = 'Download complete';
           _localDownloadedPath = UpdateService().downloadedPath;
         });
       } else {
         setState(() {
           _downloading = false;
           _downloadProgress = 0;
-          _downloadStatus = 'Download failed';
         });
         messenger.showSnackBar(
           SnackBar(
@@ -804,23 +811,46 @@ class _DevPanelState extends State<DevPanel> {
               style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ],
-          if (_downloadStatus != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _downloadStatus!,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ],
           const SizedBox(height: 12),
           if (_localDownloadedPath != null)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  final result = await OpenFilex.open(_localDownloadedPath!);
+                  final filePath = _localDownloadedPath!;
+                  if (!File(filePath).existsSync()) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Install failed: APK file not found'),
+                          backgroundColor: Colors.redAccent,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                    setState(() {
+                      _localDownloadedPath = null;
+                    });
+                    await _refreshVersion();
+                    return;
+                  }
+                  final result = await OpenFilex.open(filePath);
                   if (result.type != ResultType.done) {
                     debugPrint('Install: ${result.type} — ${result.message}');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Install failed: ${result.message}'),
+                          backgroundColor: Colors.redAccent,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   }
+                  setState(() {
+                    _localDownloadedPath = null;
+                  });
+                  await _refreshVersion();
                 },
                 icon: const Icon(Icons.install_mobile, size: 18),
                 label: const Text(
