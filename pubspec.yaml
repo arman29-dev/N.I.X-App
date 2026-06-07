@@ -3,7 +3,7 @@ description: "Your private AI agent to help you with all your work"
 publish_to: 'none'
 
 
-version: 2.0.0
+version: 2.2.0
 
 
 environment:
@@ -28,6 +28,7 @@ dependencies:
   package_info_plus: ^9.0.1
   open_filex: ^4.7.0
   flutter_markdown: ^0.7.7+1
+  flutter_svg: ^2.0.17
 
 
 dev_dependencies:

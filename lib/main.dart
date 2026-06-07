@@ -4,15 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'services/device_ws.dart';
 import 'services/log_service.dart';
-import 'services/update_service.dart';
 import 'utils/app_navigation.dart';
+import 'utils/auto_update.dart';
 import 'utils/token_storage.dart';
 import 'utils/appdata_storage.dart';
 import 'utils/app_constants.dart';
@@ -26,7 +25,6 @@ void main() {
   _requestNotificationPermission().then((_) async {
     await _initializeBackgroundService();
     _checkLaunchIntent();
-    _startUpdateAutoCheck();
   });
 }
 
@@ -50,33 +48,6 @@ Future<void> _checkLaunchIntent() async {
     }
   } catch (e) {
     debugPrint('Launch intent check failed: $e');
-  }
-}
-
-Future<void> _startUpdateAutoCheck() async {
-  try {
-    final info = await PackageInfo.fromPlatform();
-    UpdateService().startAutoCheck(info.version);
-
-    UpdateService().onUpdateAvailable.listen((release) {
-      final tag = release['tag_name'] as String? ?? 'Update Available';
-      final body = release['body'] as String? ?? 'A new version of N.I.X is available';
-      _showUpdateNotification(tag, body);
-    });
-  } catch (e) {
-    debugPrint('Auto-check init failed: $e');
-  }
-}
-
-void _showUpdateNotification(String title, String body) {
-  try {
-    const channel = MethodChannel('nix/notifications');
-    channel.invokeMethod('showUpdateNotification', {
-      'title': title,
-      'body': body,
-    });
-  } catch (e) {
-    debugPrint('Show notification failed: $e');
   }
 }
 
@@ -132,6 +103,10 @@ Future<void> _initializeBackgroundService() async {
       ),
     );
     await service.startService();
+    await Future.delayed(const Duration(milliseconds: 500));
+    service.invoke('updateNotification', {
+      'status': DeviceWS().isConnected ? 'running' : 'idle',
+    });
   } catch (e) {
     debugPrint('Background service init failed: $e');
   }
@@ -209,6 +184,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final deviceUid = await AppDataStorage.getDeviceUID();
     if (token != null && deviceUid != null) {
       DeviceWS().connect();
+      startAutoUpdateCheck();
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
       }

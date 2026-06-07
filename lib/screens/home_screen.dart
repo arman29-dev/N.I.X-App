@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/svg.dart';
 import '../widgets/sliding_selector.dart';
 import '../widgets/stats_panel.dart';
 import '../widgets/message_panel.dart';
@@ -106,7 +107,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('N.I.X'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              'assets/images/nix_logo.svg',
+              width: 24,
+              height: 24,
+              colorFilter: const ColorFilter.mode(
+                Colors.black,
+                BlendMode.srcIn,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('N.I.X'),
+          ],
+        ),
         backgroundColor: AppColors.accent,
         centerTitle: true,
       ),

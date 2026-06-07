@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:open_filex/open_filex.dart';
 
 import '../utils/app_constants.dart';
 
@@ -163,11 +162,6 @@ class UpdateService {
       _progressController.add(1.0);
 
       debugPrint('UpdateService: APK downloaded to $file');
-
-      final result = await OpenFilex.open(file.path);
-      if (result.type != ResultType.done) {
-        debugPrint('UpdateService: open file returned ${result.type} — ${result.message}');
-      }
 
       _isDownloading = false;
       return true;

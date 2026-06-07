@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 
 import '../services/update_service.dart';
@@ -41,6 +41,7 @@ class _DevPanelState extends State<DevPanel> {
   bool _downloading = false;
   double _downloadProgress = 0;
   String? _downloadStatus;
+  String? _localDownloadedPath;
   StreamSubscription<double>? _progressSub;
 
   @override
@@ -98,6 +99,7 @@ class _DevPanelState extends State<DevPanel> {
       _checkFailed = false;
       _downloadStatus = null;
       _downloadProgress = 0;
+      _localDownloadedPath = null;
     });
   }
 
@@ -167,7 +169,8 @@ class _DevPanelState extends State<DevPanel> {
         setState(() {
           _downloading = false;
           _downloadProgress = 1.0;
-          _downloadStatus = 'Download complete! Installing...';
+          _downloadStatus = 'Download complete';
+          _localDownloadedPath = UpdateService().downloadedPath;
         });
       } else {
         setState(() {
@@ -622,6 +625,10 @@ class _DevPanelState extends State<DevPanel> {
     await AppDataStorage.setBackgroundRun(value);
     if (value) {
       await FlutterBackgroundService().startService();
+      await Future.delayed(const Duration(milliseconds: 500));
+      FlutterBackgroundService().invoke('updateNotification', {
+        'status': DeviceWS().isConnected ? 'running' : 'idle',
+      });
     } else {
       FlutterBackgroundService().invoke('stop');
     }
@@ -651,8 +658,9 @@ class _DevPanelState extends State<DevPanel> {
               await DeviceWS().disconnect();
               await AppDataStorage.clearAppData();
               await TokenStorage.clearToken();
+              FlutterBackgroundService().invoke('stop');
               if (mounted) {
-                Navigator.pushReplacementNamed(context, '/dashboard');
+                Navigator.pushReplacementNamed(context, '/qr-scanner');
               }
             },
             child: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
@@ -804,55 +812,53 @@ class _DevPanelState extends State<DevPanel> {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
-            children: [
-              if (!_downloading)
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _downloadUpdate,
-                    icon: const Icon(Icons.download, size: 18),
-                    label: const Text(
-                      'Download & Install',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
+          if (_localDownloadedPath != null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final result = await OpenFilex.open(_localDownloadedPath!);
+                  if (result.type != ResultType.done) {
+                    debugPrint('Install: ${result.type} — ${result.message}');
+                  }
+                },
+                icon: const Icon(Icons.install_mobile, size: 18),
+                label: const Text(
+                  'Install',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-              const SizedBox(width: 12),
-              if (_releaseUrl != null)
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final uri = Uri.parse(_releaseUrl!);
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: const Text(
-                      'View on GitHub',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.lightGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-            ],
-          ),
+              ),
+            )
+          else if (!_downloading)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _downloadUpdate,
+                icon: const Icon(Icons.download, size: 18),
+                label: const Text(
+                  'Download',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
         ],
       ),
     );

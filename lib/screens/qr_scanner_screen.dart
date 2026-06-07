@@ -8,6 +8,7 @@ import 'package:nix/utils/appdata_storage.dart';
 import 'package:nix/utils/token_storage.dart';
 
 import '../utils/app_colors.dart';
+import '../utils/auto_update.dart';
 import '../utils/responsive.dart';
 
 class QRScannerScreen extends StatefulWidget {
@@ -72,6 +73,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         await AppDataStorage.setDeviceUID(deviceUid);
 
         DeviceWS().connect();
+        startAutoUpdateCheck();
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(msg)));
