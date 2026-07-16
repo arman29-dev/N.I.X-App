@@ -11,16 +11,40 @@ Future<http.Response> registerDevice(
   required String accessTokenUid,
 }) async {
   final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-  final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+
+  String name;
+  String type;
+
+  if (Platform.isAndroid) {
+    final androidInfo = await deviceInfo.androidInfo;
+    name = androidInfo.model;
+    type = 'smartphone';
+  } else if (Platform.isMacOS) {
+    final macInfo = await deviceInfo.macOsInfo;
+    name = macInfo.computerName;
+    type = 'laptop';
+  } else {
+    final info = await deviceInfo.deviceInfo;
+    name = (info.data['model'] as String? ??
+        info.data['name'] as String? ??
+        'Device');
+    type = 'unknown';
+  }
+
   String ipv4 = '0.0.0.0';
   try {
     final interfaces = await NetworkInterface.list();
-    final wifi = interfaces.where((i) => i.name == 'wlan0');
-    if (wifi.isNotEmpty) {
-      ipv4 = wifi.first.addresses.first.address;
-    } else {
+    if (Platform.isAndroid) {
+      final wifi = interfaces.where((i) => i.name == 'wlan0');
+      if (wifi.isNotEmpty) {
+        ipv4 = wifi.first.addresses.first.address;
+      }
+    }
+    if (ipv4 == '0.0.0.0') {
       final iface = interfaces.firstWhere(
-        (i) => i.addresses.any((a) => a.type == InternetAddressType.IPv4 && !a.isLoopback),
+        (i) => i.addresses.any(
+          (a) => a.type == InternetAddressType.IPv4 && !a.isLoopback,
+        ),
         orElse: () => interfaces.first,
       );
       ipv4 = iface.addresses.firstWhere(
@@ -42,8 +66,8 @@ Future<http.Response> registerDevice(
     },
     body: jsonEncode(<String, String?>{
       'uid': deviceUID,
-      'name': androidInfo.model,
-      'type': 'smartphone',
+      'name': name,
+      'type': type,
       'ip': ipv4,
       'owner': ownerUID,
       'token_ID': accessTokenUid,

@@ -15,4 +15,11 @@ class AppConstants {
   static const String notificationChannelName = 'N.I.X Background Service';
   static const String updateNotificationChannelId = 'nix_update_channel';
   static const String updateNotificationChannelName = 'N.I.X Updates';
+  static const String fileNotificationChannelId = 'nix_file_channel';
+  static const String fileNotificationChannelName = 'N.I.X File Transfers';
+
+  // AES-256-GCM decryption key (must match server SECRET_KEY)
+  // Used to decrypt .nixconfig desktop registration files.
+  // Change this if you change SECRET_KEY in the server's .env!
+  static const String secretKey = 'OAvsMXBzWGhBAY_3ByzT8ocXYe8a0Y2OHqt4dwmlgqg';
 }

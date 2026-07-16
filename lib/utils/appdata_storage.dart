@@ -14,6 +14,7 @@ class AppDataStorage {
   static const String _notificationEmailKey = 'notification_email';
   static const String _backgroundRunKey = 'background_run';
   static const String _lastInstalledReleaseKey = 'last_installed_release';
+  static const String _clipboardSyncKey = 'clipboard_sync';
 
   static Future<String> get _filePath async {
     final directory = await getApplicationDocumentsDirectory();
@@ -167,6 +168,16 @@ class AppDataStorage {
   static Future<String?> getLastInstalledRelease() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_lastInstalledReleaseKey);
+  }
+
+  static Future<void> setClipboardSync(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_clipboardSyncKey, value);
+  }
+
+  static Future<bool> getClipboardSync() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_clipboardSyncKey) ?? true;
   }
 
   static Future<void> clearAppData() async {

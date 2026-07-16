@@ -5,6 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/update_service.dart';
 import '../services/device_ws.dart';
@@ -159,6 +160,17 @@ class _DevPanelState extends State<DevPanel> {
   }
 
   void _downloadUpdate() async {
+    if (!Platform.isAndroid) {
+      // macOS: open GitHub releases page in browser
+      if (_releaseUrl != null) {
+        final uri = Uri.parse(_releaseUrl!);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
+      return;
+    }
+
     final release = {
       'tag_name': _latestVersion,
       'body': _releaseBody,
@@ -883,10 +895,13 @@ class _DevPanelState extends State<DevPanel> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _downloadUpdate,
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text(
-                  'Download',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                icon: Icon(
+                  Platform.isAndroid ? Icons.download : Icons.open_in_browser,
+                  size: 18,
+                ),
+                label: Text(
+                  Platform.isAndroid ? 'Download' : 'View Release',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,

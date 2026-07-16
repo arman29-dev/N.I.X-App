@@ -20,6 +20,7 @@ class DeviceWS {
   String? _baseUrl;
 
   void Function(bool connected)? onConnectionChange;
+  void Function()? onLogoutRequest;
 
   final StreamController<Map<String, dynamic>> _messageController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -86,6 +87,11 @@ class DeviceWS {
         (data) {
           try {
             final message = jsonDecode(data as String) as Map<String, dynamic>;
+            // Intercept logout command from server (e.g., device deleted from dashboard)
+            if (message['type'] == 'command' && message['action'] == 'logout') {
+              onLogoutRequest?.call();
+              return;
+            }
             _messageController.add(message);
           } catch (e) {
             debugPrint('DeviceWS: Parse error: $e');

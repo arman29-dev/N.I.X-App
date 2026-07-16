@@ -99,6 +99,10 @@ class UpdateService {
 
   Future<bool> downloadAndInstall(Map<String, dynamic> releaseData) async {
     if (_isDownloading) return false;
+    if (!Platform.isAndroid) {
+      debugPrint('UpdateService: APK download not supported on this platform');
+      return false;
+    }
     _isDownloading = true;
     _downloadProgress = 0;
 

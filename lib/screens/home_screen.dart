@@ -11,13 +11,6 @@ import '../utils/app_navigation.dart';
 import '../utils/app_colors.dart';
 import '../utils/appdata_storage.dart';
 
-List<SectionData> _sections = const [
-  SectionData(label: 'Stats', icon: Icons.dashboard, activeColor: Color(0xFF1DB954)),
-  SectionData(label: 'Message', icon: Icons.terminal, activeColor: Color(0xFF4ECDC4)),
-  SectionData(label: 'SysLogs', icon: Icons.receipt_long, activeColor: Color(0xFF42A5F5)),
-  SectionData(label: 'Dev', icon: Icons.code, activeColor: Color(0xFFFFA726)),
-];
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -29,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   int _currentTab = 0;
   final ValueNotifier<int> _devTabController = ValueNotifier<int>(0);
+  int _unreadMessageCount = 0;
 
   @override
   void initState() {
@@ -41,11 +35,19 @@ class _HomeScreenState extends State<HomeScreen> {
       AppNavigation.pendingOpenUpdates = false;
       WidgetsBinding.instance.addPostFrameCallback((_) => _openDevUpdatesTab());
     }
+    AppNavigation.onOpenChat = _openChatTab;
+    if (AppNavigation.pendingOpenChat) {
+      AppNavigation.pendingOpenChat = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openChatTab());
+    }
+    AppNavigation.onOpenDevPanel = _openDevSettingsTab;
   }
 
   @override
   void dispose() {
     AppNavigation.onOpenUpdates = null;
+    AppNavigation.onOpenChat = null;
+    AppNavigation.onOpenDevPanel = null;
     _devTabController.dispose();
     super.dispose();
   }
@@ -56,6 +58,28 @@ class _HomeScreenState extends State<HomeScreen> {
       _currentTab = 0;
     });
     _devTabController.value = 0;
+  }
+
+  void _openChatTab() {
+    setState(() {
+      _selectedIndex = 1;
+      _currentTab = 0;
+      _unreadMessageCount = 0;
+    });
+  }
+
+  void _onUnreadChanged(int count) {
+    if (mounted) {
+      setState(() => _unreadMessageCount = count);
+    }
+  }
+
+  void _openDevSettingsTab() {
+    setState(() {
+      _selectedIndex = 3;
+      _currentTab = 1;
+    });
+    _devTabController.value = 1;
   }
 
   Future<void> _checkBatteryOptimization() async {
@@ -103,6 +127,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDev = _selectedIndex == 3;
+    final sections = [
+      SectionData(label: 'Stats', icon: Icons.dashboard, activeColor: const Color(0xFF1DB954)),
+      SectionData(label: 'Message', icon: Icons.terminal, activeColor: const Color(0xFF4ECDC4), badgeCount: _unreadMessageCount),
+      SectionData(label: 'SysLogs', icon: Icons.receipt_long, activeColor: const Color(0xFF42A5F5)),
+      SectionData(label: 'Dev', icon: Icons.code, activeColor: const Color(0xFFFFA726)),
+    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -134,16 +164,17 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(() {
                 _selectedIndex = i;
                 _currentTab = 0;
+                if (i == 1) _unreadMessageCount = 0;
               });
             },
-            sections: _sections,
+            sections: sections,
           ),
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,
               children: [
                 StatsPanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
-                MessagePanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
+                MessagePanel(tabIndex: _currentTab, onTabChanged: _onTabChanged, onUnreadChanged: _onUnreadChanged),
                 SysLogsPanel(tabIndex: _currentTab, onTabChanged: _onTabChanged),
                 DevPanel(devTabController: _devTabController),
               ],
@@ -162,6 +193,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBottomNav() {
+    final sections = [
+      const SectionData(label: 'Stats', icon: Icons.dashboard, activeColor: Color(0xFF1DB954)),
+      const SectionData(label: 'Message', icon: Icons.terminal, activeColor: Color(0xFF4ECDC4)),
+      const SectionData(label: 'SysLogs', icon: Icons.receipt_long, activeColor: Color(0xFF42A5F5)),
+      const SectionData(label: 'Dev', icon: Icons.code, activeColor: Color(0xFFFFA726)),
+    ];
     List<BottomNavigationBarItem> items;
     switch (_selectedIndex) {
       case 0:
@@ -194,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentTab,
         onTap: _onTabChanged,
         items: items,
-        selectedItemColor: _sections[_selectedIndex].activeColor,
+        selectedItemColor: sections[_selectedIndex].activeColor,
         unselectedItemColor: Colors.white38,
         type: BottomNavigationBarType.fixed,
       ),

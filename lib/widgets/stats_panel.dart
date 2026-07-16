@@ -140,28 +140,11 @@ class _StatsPanelState extends State<StatsPanel> {
         }
       } else if (event == 'device_offline' && data != null) {
         _updateDeviceOnline(data['uid'] as String?, false);
-      } else if (event == 'device_added' && data != null) {
-        setState(() => _devices.add(data));
-      } else if (event == 'device_removed' && data != null) {
-        final removedUid = data['uid'] as String?;
-        if (removedUid != null) {
-          setState(() {
-            _devices.removeWhere((d) => d['uid'] == removedUid);
-          });
-        }
-      } else if (event == 'device_renamed' && data != null) {
-        final renamedUid = data['uid'] as String?;
-        final newName = data['name'] as String?;
-        if (renamedUid != null && newName != null) {
-          setState(() {
-            for (var i = 0; i < _devices.length; i++) {
-              if (_devices[i]['uid'] == renamedUid) {
-                _devices[i]['name'] = newName;
-                break;
-              }
-            }
-          });
-        }
+      } else if (event == 'device_added' || event == 'device_removed' || event == 'device_renamed') {
+        // Refresh the full authoritative device list from the server to stay in sync.
+        // The individual event payloads may lack fields (e.g. is_online) and
+        // can race with WS connect/disconnect. A full refresh guarantees correctness.
+        DeviceWS().sendCommand('get_devices');
       }
     }
   }

@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,8 +9,11 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/load_config_screen.dart';
 import 'services/device_ws.dart';
 import 'services/log_service.dart';
+import 'services/clipboard_service.dart';
+import 'api/logout_device.dart';
 import 'utils/app_navigation.dart';
 import 'utils/auto_update.dart';
 import 'utils/token_storage.dart';
@@ -21,10 +25,24 @@ void main() {
   _setupDebugPrintInterceptor();
   _wireDeviceWSNotifications();
   _setupNotificationMethodChannel();
+  _setupMenuBarChannel();
   runApp(const MyApp());
   _requestNotificationPermission().then((_) async {
     await _initializeBackgroundService();
     _checkLaunchIntent();
+  });
+}
+
+void _setupMenuBarChannel() {
+  const channel = MethodChannel('nix/menu');
+  channel.setMethodCallHandler((call) async {
+    switch (call.method) {
+      case 'openDevPanel':
+        AppNavigation.onOpenDevPanel?.call();
+      case 'refreshConnection':
+        await DeviceWS().disconnect();
+        DeviceWS().connect();
+    }
   });
 }
 
@@ -34,6 +52,9 @@ void _setupNotificationMethodChannel() {
     if (call.method == 'openUpdates') {
       AppNavigation.onOpenUpdates?.call();
       AppNavigation.pendingOpenUpdates = AppNavigation.onOpenUpdates == null;
+    } else if (call.method == 'openChat') {
+      AppNavigation.onOpenChat?.call();
+      AppNavigation.pendingOpenChat = AppNavigation.onOpenChat == null;
     }
     return null;
   });
@@ -42,9 +63,14 @@ void _setupNotificationMethodChannel() {
 Future<void> _checkLaunchIntent() async {
   try {
     const channel = MethodChannel('nix/notifications');
-    final openUpdates = await channel.invokeMethod<bool>('getLaunchIntent');
-    if (openUpdates == true) {
-      AppNavigation.pendingOpenUpdates = true;
+    final extras = await channel.invokeMethod<List<dynamic>>('getLaunchIntent');
+    if (extras != null) {
+      if (extras.contains('nix_open_updates')) {
+        AppNavigation.pendingOpenUpdates = true;
+      }
+      if (extras.contains('nix_open_chat')) {
+        AppNavigation.pendingOpenChat = true;
+      }
     }
   } catch (e) {
     debugPrint('Launch intent check failed: $e');
@@ -63,6 +89,7 @@ Future<void> _requestNotificationPermission() async {
 }
 
 void _wireDeviceWSNotifications() {
+  if (!Platform.isAndroid) return;
   debugPrint('[Notification] Wiring WS notification callbacks');
   DeviceWS().onConnectionChange = (connected) {
     debugPrint('[Notification] WS status changed to: ${connected ? "running" : "idle"}');
@@ -83,6 +110,7 @@ void _wireDeviceWSNotifications() {
 }
 
 Future<void> _initializeBackgroundService() async {
+  if (!Platform.isAndroid) return;
   try {
     final service = FlutterBackgroundService();
     await service.configure(
@@ -151,6 +179,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'N.I.X',
+      navigatorKey: AppNavigation.navigatorKey,
       theme: ThemeData(
         primarySwatch: Colors.teal,
       ),
@@ -159,6 +188,7 @@ class MyApp extends StatelessWidget {
         '/qr-scanner': (context) => const QRScannerScreen(),
         '/dashboard': (context) => const DashboardScreen(),
         '/home': (context) => const HomeScreen(),
+        '/load-config': (context) => const LoadConfigScreen(),
       },
       debugShowCheckedModeBanner: false,
     );
@@ -183,10 +213,34 @@ class _SplashScreenState extends State<SplashScreen> {
     final token = await TokenStorage.getAccessToken();
     final deviceUid = await AppDataStorage.getDeviceUID();
     if (token != null && deviceUid != null) {
-      DeviceWS().connect();
+      await DeviceWS().connect();
       startAutoUpdateCheck();
+      // Start clipboard sync if enabled
+      final clipboardSync = await AppDataStorage.getClipboardSync();
+      if (clipboardSync) {
+        ClipboardService().start();
+      }
+      // Handle forced logout from server (device deleted from dashboard)
+      DeviceWS().onLogoutRequest = () async {
+        try {
+          await logout();
+        } catch (_) {}
+        await DeviceWS().disconnect();
+        await AppDataStorage.clearAppData();
+        await TokenStorage.clearToken();
+        if (Platform.isAndroid) {
+          FlutterBackgroundService().invoke('stop');
+        }
+        AppNavigation.navigatorKey.currentState
+            ?.pushReplacementNamed('/qr-scanner');
+      };
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
+      }
+    } else if (Platform.isMacOS) {
+      // Desktop: load config file instead of QR scan
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/load-config');
       }
     } else if (mounted) {
       Navigator.pushReplacementNamed(context, '/qr-scanner');

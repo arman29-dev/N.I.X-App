@@ -4,11 +4,13 @@ class SectionData {
   final String label;
   final IconData icon;
   final Color activeColor;
+  final int badgeCount;
 
   const SectionData({
     required this.label,
     required this.icon,
     required this.activeColor,
+    this.badgeCount = 0,
   });
 }
 
@@ -64,12 +66,42 @@ class SlidingSelector extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () => onChanged(i),
                     child: Center(
-                      child: Icon(
-                        section.icon,
-                        size: 24,
-                        color: isSelected
-                            ? section.activeColor
-                            : Colors.white54,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            section.icon,
+                            size: 24,
+                            color: isSelected
+                                ? section.activeColor
+                                : Colors.white54,
+                          ),
+                          if (section.badgeCount > 0)
+                            Positioned(
+                              right: -6,
+                              top: -4,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  section.badgeCount > 99 ? '99+' : '${section.badgeCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
